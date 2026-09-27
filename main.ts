@@ -16,6 +16,10 @@ import {
   resolveSteamAssets,
 } from "./lib/steam-assets";
 import { searchSteamLibrary } from "./lib/steam-search";
+import {
+  selectAppDetailsEntry,
+  type SteamAppDetailsResponse,
+} from "./lib/steam-appdetails";
 
 const addon = new OGIAddon({
   name: "Steam Catalog",
@@ -481,23 +485,20 @@ async function getRealGame(
   // Add delay to prevent rate limiting
   await new Promise((resolve) => setTimeout(resolve, 200));
   try {
-    const response = await axios({
+    const response = await axios<SteamAppDetailsResponse>({
       method: "GET",
       url: `https://store.steampowered.com/api/appdetails?appids=${titleId}&cc=us`,
     });
-    if (!response.data[titleId].success) {
+    const entry = selectAppDetailsEntry(response.data, titleId);
+    if (!entry?.success || !entry.data) {
       return undefined;
     }
-    if (response.data[titleId].data.type === "game") {
+    if (entry.data.type === "game") {
       if (cached) {
-        setCachedData(
-          REAL_GAME_CACHE_FILE,
-          titleId.toString(),
-          response.data[titleId].data,
-        );
+        setCachedData(REAL_GAME_CACHE_FILE, titleId.toString(), entry.data);
         console.log(`Cached game data for ${titleId}`);
       }
-      return response.data[titleId].data;
+      return entry.data;
     }
 
     return undefined;
